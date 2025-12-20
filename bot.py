@@ -5,6 +5,8 @@ import schedule
 import threading
 import time
 from config import *
+from logic import create_collage
+import tempfile
 
 bot = TeleBot(API_TOKEN)
 
@@ -52,11 +54,16 @@ def shedule_thread():
 def handle_start(message):
     user_id = message.chat.id
     if user_id in manager.get_users():
-        bot.reply_to(message, "Ты уже зарегестрирован!")
+        bot.reply_to(message, """Ты уже зарегестрирован!
+Вот доступные команды:
+/rating - показывает рейтинг пользователей""")
     else:
         manager.add_user(user_id, message.from_user.username)
         bot.reply_to(message, """Привет! Добро пожаловать! 
 Тебя успешно зарегистрировали!
+Вот доступные команды:
+/rating - показывает рейтинг пользователей
+
 Каждый час тебе будут приходить новые картинки и у тебя будет шанс их получить!
 Для этого нужно быстрее всех нажать на кнопку 'Получить!'
 
@@ -71,6 +78,28 @@ def handle_rating(message):
     res = f'|USER_NAME    |COUNT_PRIZE|\n{"_" * 26}\n' + res
     bot.send_message(message.chat.id, res)
 
+
+def get_my_score(bot, message):
+    user_id = str(message.from_user.id)
+    collage = create_collage(user_id)
+    if collage is None:
+        bot.reply_to(message, "У вас пока нет полученных призов!")
+        return
+    
+    with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
+        tmp_filename = tmp_file.name
+
+    cv2.imwrite(tmp_filename, collage)
+
+    try:
+        with open(tmp_filename, 'rb') as photo:
+            bot.send_photo(
+                chat_id=message.chat.id,
+                photo=photo,
+                caption="Ваши полученные призы!"
+            )
+    finally:
+        os.unlink(tmp_filename)
 
 
 
